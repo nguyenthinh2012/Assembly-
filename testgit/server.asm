@@ -6,6 +6,9 @@ struc sockaddr_in
     .sin_addr resd 1
     .sin_zero resq 1
 endstruc
+struc mess
+	.sin_mess resw 1
+endstruc
 fm: equ 2
 tcp: equ 0
 type_soc: equ 1
@@ -19,10 +22,11 @@ section .data
 fd: dq 0
 my_sa istruc sockaddr_in
     at sockaddr_in.sin_family, dw fm
-    at sockaddr_in.sin_port, dw PORT
+    at sockaddr_in.sin_port, dw 0x0645
     at sockaddr_in.sin_addr, dd 0x100007F
     at sockaddr_in.sin_zero, dq 0
 iend
+
 created: db "Created!"
 cLen: equ $ - created
 binded: db "Bind done"
@@ -35,6 +39,10 @@ aLen equ $ - accepted
 error: db "error"
 eLen equ $ - error
 addL: dq 0
+len: dq 16
+mess1: times 100 db 0
+len1: dq 0
+new_fd: dq 0
 section	.text
 _start:
 .create:
@@ -63,18 +71,37 @@ _start:
 	mov rax, 43
 	mov rdi, [fd]
 	mov rsi, my_sa
-	mov rdx, 16
+	mov rdx, len
 	syscall
 	cmp rax, 0
 	jl .accept
+	mov [new_fd], rax
 	mov rax,1 
 	mov rdi, 1
 	mov rsi, accepted
 	mov rdx, aLen
 	syscall
+_readAll:
+.read:
+	mov rax, 0
+	mov rdi, [new_fd]
+	mov rsi, mess1
+	mov rdx, 100
+	syscall
+	cmp rax, 0
+	jl _readAll
+	mov QWORD [len1], rax
+	xor QWORD [mess1], 0x421
+.send: 
+	mov rax, 1
+	mov rdi, [new_fd]
+	mov rsi, mess1
+	mov rdx, [len1]
+	syscall
+	jmp _start.accept
 _exit: 
-	mov eax, 1
+	mov rax, 60
 	mov ebx, 0
-	int 80h
+	syscall
 
 
